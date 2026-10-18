@@ -3,7 +3,18 @@ project(cliAnimation)
 
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_INCLUDE_CURRENT_DIR ON)
-SET(CMAKE_CXX_FLAGS "-O0 -Wall -pthread -fcheck-new -g ")
+# optimisation and debug info come from CMAKE_BUILD_TYPE (Release, Debug)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pthread")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcheck-new")
+endif()
+
+# Boost is only needed for the unit tests, which are off unless asked for
+option(CLANI_TESTS "build the Boost unit tests and the model and view test programs" OFF)
+
+# curses libraries for clani: wide ncurses and its menu library by default;
+# a static build passes e.g. -DCLANI_CURSES_LIBS="menuw;ncursesw"
+set(CLANI_CURSES_LIBS "menuw;ncursesw" CACHE STRING "curses libraries clani links")
 
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ")
 SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ")
@@ -44,14 +55,29 @@ file (GLOB_RECURSE utilz_tests test/utilz/*.cpp)
 ## Clani
 SET(clanimain src/main.cpp)
 
+# Finalize Targets
+
+## Clani - Full Program
+add_executable(clani
+        ${clanimain}
+        ${model_sources}
+        ${view_sources}
+        ${controller_sources}
+        ${utilz_sources}
+        )
+target_include_directories(clani PUBLIC
+        include
+        include/model
+        include/view
+        include/utilz
+        )
+target_link_libraries(clani ${CLANI_CURSES_LIBS})
+
+if(CLANI_TESTS)
+
 # Dependencies
 ## BOOST::TEST
 find_package(Boost 1.72 COMPONENTS unit_test_framework REQUIRED)
-
-## Ncurses
-find_library(ncurses 6.4 COMPONENTS menu REQUIRED)
-
-# Finalize Targets
 
 ## Model Module
 add_executable (model
@@ -73,23 +99,7 @@ target_include_directories(view PUBLIC
         include
         include/view
         )
-target_link_libraries(view ncurses menu)
-
-## Clani - Full Program
-add_executable(clani
-        ${clanimain}
-        ${model_sources}
-        ${view_sources}
-        ${controller_sources}
-        ${utilz_sources}
-        )
-target_include_directories(clani PUBLIC
-        include
-        include/model
-        include/view
-        include/utilz
-        )
-target_link_libraries(clani ncurses menu)
+target_link_libraries(view ${CLANI_CURSES_LIBS})
 
 # Tests using Boost
 
@@ -117,7 +127,7 @@ foreach (testsrc ${view_tests})
     add_executable(${testName} ${testsrc}
             ${view_sources}
             ${utilz_sources})
-    target_link_libraries(${testName} ${Boost_LIBRARIES} ncurses menu)
+    target_link_libraries(${testName} ${Boost_LIBRARIES} ${CLANI_CURSES_LIBS})
     target_include_directories(${testName} PUBLIC
             include
             include/view)
@@ -147,3 +157,5 @@ foreach (testsrc ${utilz_tests})
 endforeach(testsrc)
 
 enable_testing()
+
+endif(CLANI_TESTS)
