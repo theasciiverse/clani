@@ -5,12 +5,25 @@
 //##############################################################################
 
 #include <cocktailmenu.h>
+#include <atomic>
+#include <cstdio>
 #include <cstring>
 #include <utilz/global.h>
+
+// set by Ctrl+C, SIGTERM and SIGHUP (main.cpp)
+extern std::atomic<bool> quit;
 
 namespace CliAniHury {
 
 #define CTRLD   4
+
+    // getch() for the menu: once a signal asked to quit, every menu loop
+    // sees F1 (its exit key), so the menu closes instead of waiting for a
+    // key that never comes (upstream ignored SIGTERM and SIGHUP here)
+    static int menu_getch() {
+        int c = getch();
+        return quit.load() ? KEY_F(1) : c;
+    }
 
     // ---------------------Choose Operation Mode----------------------
     static const char *dcd_operation_modes[DCD_OP_MODE_AMOUNT] = {
@@ -127,7 +140,7 @@ namespace CliAniHury {
         wrefresh(_OpModeWindow);
 
         int c, enter = 0;
-        while(enter == 0 && (c = getch()) != KEY_F(1)) {
+        while(enter == 0 && (c = menu_getch()) != KEY_F(1)) {
             switch(c) {
                 case KEY_RESIZE:
                     clear();
@@ -179,7 +192,7 @@ namespace CliAniHury {
         int leftWidth = DCD_MENU_WIDTH;
         const char* leftTitle = "Choose";
         int leftStartX =  (_Cols/2)/2 - leftWidth/2;
-        _LeftOptWindow = createWin(leftHeight, leftWidth, _HeaderWindow->_maxy+2, leftStartX);
+        _LeftOptWindow = createWin(leftHeight, leftWidth, getmaxy(_HeaderWindow)+1, leftStartX);
 
         int rightHeight = DCD_MENU_HEIGHT;
         int rightWidth = DCD_MENU_WIDTH;
@@ -188,14 +201,28 @@ namespace CliAniHury {
         const char* frameTasteTitle = "Select Scene:";
         const char* frameEffectTitle = "Select Effect:";
         int rightStartX = (_Cols/2)/2 + (_Cols/2) - rightWidth/2;
-        _RightOptWindow = createWin(rightHeight, rightWidth, _HeaderWindow->_maxy+2, rightStartX);
+        _RightOptWindow = createWin(rightHeight, rightWidth, getmaxy(_HeaderWindow)+1, rightStartX);
 
         DcdIconSkin rightOptIcon = DcdIconSkin();
 
         int exit = 0;
 
         if(_OperationMode == 1) {
-            _ScrllOptionMenu = new DcdMenu(0, dcd_scrll_opt_choices, dcd_scrll_opt_default_selection, DCD_SCRLL_OPTION_AMOUNT);
+            // The option values are shown as item descriptions. ITEM is
+            // opaque in current ncurses, so instead of swapping the
+            // description pointer, each item points at a buffer of its own,
+            // padded to a fixed width, that setOptionLabel() rewrites.
+            const char *optDescs[DCD_SCRLL_OPTION_AMOUNT];
+            for (int i = 0; i < DCD_SCRLL_OPTION_AMOUNT; i++) {
+                setOptionLabel(i, dcd_scrll_opt_default_selection[i]);
+                optDescs[i] = _OptionLabels[i];
+            }
+            // the fields start from what the caller passed in
+            strncpy(_InputSeed, seed, INPUT_SEED_MAXLENGTH);
+            _InputSeed[INPUT_SEED_MAXLENGTH] = '\0';
+            strncpy(_InputVariety, variety, SYMBOL_VARIETY);
+            _InputVariety[SYMBOL_VARIETY] = '\0';
+            _ScrllOptionMenu = new DcdMenu(0, dcd_scrll_opt_choices, optDescs, DCD_SCRLL_OPTION_AMOUNT);
             _ScrllOptionMenu->width = leftWidth;
             _ScrllOptionMenu->title = leftTitle;
             set_menu_mark(_ScrllOptionMenu->menu, " -> ");
@@ -230,7 +257,7 @@ namespace CliAniHury {
             refreshAllWindows();
 
             int c, stop = 0;
-            while(stop == 0 && (c = getch()) != KEY_F(1)) {
+            while(stop == 0 && (c = menu_getch()) != KEY_F(1)) {
                 switch (c) {
                     case KEY_RESIZE:
                         clear();
@@ -263,9 +290,7 @@ namespace CliAniHury {
                                     select->option_s.taste =
                                             (item == -1) * select->option_s.taste
                                             + (item >= 0) * item;
-                                    const char *tempLabel = dcd_scrll_taste_choices[select->option_s.taste];
-                                    current_item(_ScrllOptionMenu->menu)->description.length = strlen(tempLabel);
-                                    current_item(_ScrllOptionMenu->menu)->description.str = tempLabel;
+                                    setOptionLabel(1, dcd_scrll_taste_choices[select->option_s.taste]);
                                     clear();
                                 }
                                     break;
@@ -274,24 +299,20 @@ namespace CliAniHury {
                                     select->option_s.effect =
                                             (item == -1) * select->option_s.effect
                                             + (item >= 0) * item;
-                                    const char *tempLabel = dcd_scrll_effect_choices[select->option_s.effect];
-                                    current_item(_ScrllOptionMenu->menu)->description.length = strlen(tempLabel);
-                                    current_item(_ScrllOptionMenu->menu)->description.str = tempLabel;
+                                    setOptionLabel(2, dcd_scrll_effect_choices[select->option_s.effect]);
                                     clear();
                                 }
                                     break;
                                 case 3:
                                     runSeedInput(_ScrllOptionMenu, optionSubWin);
-                                    current_item(_ScrllOptionMenu->menu)->description.length = INPUT_SEED_MAXLENGTH+1;
-                                    current_item(_ScrllOptionMenu->menu)->description.str = _InputSeed;
+                                    setOptionLabel(3, _InputSeed);
                                     for(int i=0; i<INPUT_SEED_MAXLENGTH+1; i++) {
                                         seed[i] = _InputSeed[i];
                                     }
                                     break;
                                 case 4:
                                     runVariationInput(_ScrllOptionMenu, optionSubWin);
-                                    current_item(_ScrllOptionMenu->menu)->description.length = SYMBOL_VARIETY+1;
-                                    current_item(_ScrllOptionMenu->menu)->description.str = _InputVariety;
+                                    setOptionLabel(4, _InputVariety);
                                     for(int i=0; i<SYMBOL_VARIETY+1; i++) {
                                         variety[i] = _InputVariety[i];
                                     }
@@ -301,6 +322,14 @@ namespace CliAniHury {
                                     break;
                                 default:
                                     break;
+                            }
+                            // show the new value now (upstream's only
+                            // appeared after the next key)
+                            if (stop == 0) {
+                                ITEM *cur = current_item(_ScrllOptionMenu->menu);
+                                unpost_menu(_ScrllOptionMenu->menu);
+                                post_menu(_ScrllOptionMenu->menu);
+                                set_current_item(_ScrllOptionMenu->menu, cur);
                             }
                         }
                         napms(10);
@@ -329,7 +358,7 @@ namespace CliAniHury {
         refresh();
         napms(50);
         int acceleration = 2;
-        for(int k=1; k<=15; k++) {
+        for(int k=1; k<=15 && !quit.load(); k++) {
             wmove(_HeaderWindow, 0, 0);
             wdeleteln(_HeaderWindow);
             wrefresh(_HeaderWindow);
@@ -344,6 +373,11 @@ namespace CliAniHury {
         deleteWin(_HeaderWindow);
 
         return exit;
+    }
+
+    void Decidecation::setOptionLabel(int index, const char *label) {
+        snprintf(_OptionLabels[index], sizeof(_OptionLabels[index]), "%-*.*s",
+                 DCD_MENU_MAX_LABEL_SIZE, DCD_MENU_MAX_LABEL_SIZE, label);
     }
 
     void Decidecation::abort() {
@@ -365,13 +399,13 @@ namespace CliAniHury {
     int Decidecation::runSelectMenu(DcdMenu *localMenu, WINDOW *subWin) {
         post_menu(localMenu->menu);
         _ClaniBanner->drawIcon(_HeaderWindow);
-        drawMenu(subWin->_parent, localMenu->title, localMenu->width);
+        drawMenu(wgetparent(subWin), localMenu->title, localMenu->width);
 
         refresh();
-        wrefresh(subWin->_parent);
+        wrefresh(wgetparent(subWin));
 
         int c, stop = 0;
-        while(stop == 0 && (c = getch())) {
+        while(stop == 0 && (c = menu_getch())) {
             switch (c) {
                 case KEY_RESIZE:
                     clear();
@@ -403,7 +437,7 @@ namespace CliAniHury {
                     break;
             }
             _ClaniBanner->drawIcon(_HeaderWindow);
-            drawMenu(subWin->_parent, localMenu->title, localMenu->width);
+            drawMenu(wgetparent(subWin), localMenu->title, localMenu->width);
             drawMenu(_LeftOptWindow, _ScrllOptionMenu->title, _ScrllOptionMenu->width);
 
             refresh();
@@ -427,7 +461,7 @@ namespace CliAniHury {
 
         char tempInput[INPUT_SEED_MAXLENGTH+1];
         int input_char, stop = 0;
-        while(stop < INPUT_SEED_MAXLENGTH && (input_char = getch())) {
+        while(stop < INPUT_SEED_MAXLENGTH && (input_char = menu_getch())) {
             if('0' <= input_char && input_char <= '9') {
                 tempInput[stop] = (char)input_char;
                 mvwprintw(subWin, itemPosY, itemPosX+stop, "%s", (char*)&input_char);
@@ -453,6 +487,7 @@ namespace CliAniHury {
                     _InputSeed[INPUT_SEED_MAXLENGTH] = '\0';
                     break;
                 case ERR:
+                case KEY_F(1):
                 case 0x1B: // Escape character
                     stop = 1111;
                 default:
@@ -480,7 +515,7 @@ namespace CliAniHury {
 
         char tempInput[SYMBOL_VARIETY+1];
         int input_char, stop = 0;
-        while(stop < SYMBOL_VARIETY && (input_char = getch())) {
+        while(stop < SYMBOL_VARIETY && (input_char = menu_getch())) {
             if(' ' <= input_char && input_char <= '~') {
                 tempInput[stop] = (char)input_char;
                 mvwprintw(subWin, itemPosY, itemPosX+stop, "%s", (char*)&input_char);
@@ -494,7 +529,21 @@ namespace CliAniHury {
                     stop = stop - (stop > 0);
                     mvwprintw(subWin, itemPosY, itemPosX+stop, "%s", (char*)&backspace);
                     break;
+                case KEY_ENTER:
+                case '\n':
+                    // Enter takes the characters typed so far (upstream only
+                    // ended after all ten); the last one fills the rest
+                    if(stop == 0) {
+                        stop = 1111;
+                    } else {
+                        for(int k=stop; k<SYMBOL_VARIETY; k++) {
+                            tempInput[k] = tempInput[stop-1];
+                        }
+                        stop = SYMBOL_VARIETY;
+                    }
+                    break;
                 case ERR:
+                case KEY_F(1):
                 case 0x1B: // Escape character
                     stop = 1111;
                 default:

@@ -173,6 +173,10 @@ namespace CliAniHury {
          * @param width : int of width for menu window
          */
         void drawMenu(WINDOW *win, const char *title, int width);
+
+        // option values beside the scroll mode items, padded to a fixed width
+        char _OptionLabels[DCD_SCRLL_OPTION_AMOUNT][DCD_MENU_MAX_LABEL_SIZE+1];
+        void setOptionLabel(int index, const char *label);
         void onResize();
         void refreshAllWindows();
 

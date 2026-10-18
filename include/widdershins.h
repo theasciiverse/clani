@@ -26,6 +26,7 @@ namespace CliAniHury {
         int exit();
 
         void start();
+        void startDirect(int flavour, int effect, int seed, const char *chars);
         void runFrame(int time);
         void scheduleResize();
 
@@ -34,7 +35,7 @@ namespace CliAniHury {
         CliView* _View;
         GreaseMonkey _Engine;
         opmode_run_func _RunFunc = nullptr;
-        bool resizeTriggered = false;
+        volatile bool resizeTriggered = false;
 
     };
 }; // end of namespace CliAniHury

@@ -63,7 +63,7 @@ namespace tasty {
         }
 
         ~CharIteration() {
-            delete _symbolRanges;
+            delete[] _symbolRanges;
         }
 
         /**

@@ -23,6 +23,11 @@ namespace CliAniHury {
          * @return 0 if successful and exit, 1 for scroll mode and 2 for frame mode
          */
         int init();
+        /**
+         * Sets up curses for the animation without the menu
+         */
+        void initDirect();
+        void setVariety(const char *chars);
         void runMainMenu();
         void fastExit();
 
@@ -36,7 +41,10 @@ namespace CliAniHury {
          * @deprecated UNUSED FUNCTION!
          */
         void drawAll();
-        void waiting(int time);
+        /**
+         * @return true when a key was pressed while waiting
+         */
+        bool waiting(int time);
 
         selection getSelection();
         int getSeed();

@@ -115,10 +115,10 @@ namespace tasty {
         int index = x % CHAR_AMOUNT_PER_LINE;
 
         if((att_zigzag_noise_pop[index][0] == 1 && att_zigzag_noise_pop[index][1] == 0) ||
-           (att_zigzag_noise_pop[(index+1) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[index+1][1] == -1 ) ||
-           (att_zigzag_noise_pop[(index+2) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[index+2][1] == -2 ) ||
-           (att_zigzag_noise_pop[(index+3) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[index+3][1] == -3 ) ||
-           (att_zigzag_noise_pop[(index+4) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[index+4][1] == -4 ) ||
+           (att_zigzag_noise_pop[(index+1) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[(index+1) % CHAR_AMOUNT_PER_LINE][1] == -1 ) ||
+           (att_zigzag_noise_pop[(index+2) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[(index+2) % CHAR_AMOUNT_PER_LINE][1] == -2 ) ||
+           (att_zigzag_noise_pop[(index+3) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[(index+3) % CHAR_AMOUNT_PER_LINE][1] == -3 ) ||
+           (att_zigzag_noise_pop[(index+4) % CHAR_AMOUNT_PER_LINE][0] == 1 && att_zigzag_noise_pop[(index+4) % CHAR_AMOUNT_PER_LINE][1] == -4 ) ||
            (att_zigzag_noise_pop[((index-1<0)*CHAR_AMOUNT_PER_LINE)+index-1][0] == 1 && att_zigzag_noise_pop[((index-1<0)*CHAR_AMOUNT_PER_LINE)+index-1][1] == 1 ) ||
            (att_zigzag_noise_pop[((index-2<0)*CHAR_AMOUNT_PER_LINE)+index-2][0] == 1 && att_zigzag_noise_pop[((index-2<0)*CHAR_AMOUNT_PER_LINE)+index-2][1] == 2 ) ||
            (att_zigzag_noise_pop[((index-3<0)*CHAR_AMOUNT_PER_LINE)+index-3][0] == 1 && att_zigzag_noise_pop[((index-3<0)*CHAR_AMOUNT_PER_LINE)+index-3][1] == 3 ) ||

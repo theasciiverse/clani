@@ -5,8 +5,12 @@
 //##############################################################################
 
 #include <widdershins.h>
+#include <atomic>
 #include <cstdio>
 #include <sys/ioctl.h>
+
+// set by a key press during the animation, or by a signal (main.cpp)
+extern std::atomic<bool> quit;
 
 namespace CliAniHury {
 
@@ -47,6 +51,22 @@ namespace CliAniHury {
         _Engine.setup(opmode, _View->getSeed(), _View->getSelection());
     }
 
+    void Widdershins::startDirect(int flavour, int effect, int seed, const char *chars) {
+        // Straight into the animation, without the menu
+        _View->initDirect();
+        if (chars != nullptr) {
+            _View->setVariety(chars);
+        }
+
+        _Engine.setCharacters(_View->getVariety(), SYMBOL_VARIETY);
+        _RunFunc = scrollmode_run;
+
+        selection select;
+        select.option_s.taste = (short)flavour;
+        select.option_s.effect = (short)effect;
+        _Engine.setup(1, seed, select);
+    }
+
     void performResize(CliView* view) {
 
         struct winsize size;
@@ -57,8 +77,11 @@ namespace CliAniHury {
 
     void Widdershins::runFrame(int time) {
 
-        if (resizeTriggered)
+        if (resizeTriggered) {
+            // once per resize (upstream resized on every frame after the first)
+            resizeTriggered = false;
             performResize(_View);
+        }
 
         (*_RunFunc)(*_View, _Engine);
 
@@ -67,8 +90,9 @@ namespace CliAniHury {
     void scrollmode_run(CliView &view, GreaseMonkey &engine) {
         // Prints the newest line of characters at the top
         view.printAt(0, 0, engine.runIteration());
-        // Waits for a specific amount of time
-        view.waiting(100);
+        // Waits for a specific amount of time; a key press ends the animation
+        if (view.waiting(100))
+            quit.store(true);
         // Removes the bottom most line on cli
         view.removeBottomLine();
     }

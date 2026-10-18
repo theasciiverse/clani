@@ -18,13 +18,12 @@
 
 namespace CliAniHury {
 
+    // reads the decimal seed typed in the menu (upstream's loop assigned
+    // instead of adding and skipped the first digit, so "1" gave 0)
     int char_to_decimal(const char *c, int size) {
         int result = 0;
-        int factor = 10;
-        int base = 1;
-        for(size=size-1; 0<size; size--) {
-            result = (c[size] - '0') * base;
-            base = factor*base;
+        for(int i = 0; i < size && '0' <= c[i] && c[i] <= '9'; i++) {
+            result = result * 10 + (c[i] - '0');
         }
         return result;
     }
@@ -61,6 +60,28 @@ namespace CliAniHury {
         return decider->runStarter();
     }
 
+    void CliView::initDirect() {
+        cbreak();
+        noecho();
+        clear();
+        curs_set(0);
+        keypad(stdscr, TRUE);
+        for(int i=0; i < SYMBOL_VARIETY; i++) {
+            _variety[i] = _defaultChars[i];
+        }
+        _variety[SYMBOL_VARIETY] = '\0';
+        _MainMenu = nullptr;
+    }
+
+    void CliView::setVariety(const char *chars) {
+        int n = (int)strlen(chars);
+        for(int i=0; i < SYMBOL_VARIETY; i++) {
+            // shorter lists repeat their last character for the denser bands
+            _variety[i] = n > 0 ? chars[i < n ? i : n - 1] : _defaultChars[i];
+        }
+        _variety[SYMBOL_VARIETY] = '\0';
+    }
+
     void CliView::runMainMenu() {
         for(int i=0; i < SYMBOL_VARIETY; i++) {
             _variety[i] = _defaultChars[i];
@@ -83,8 +104,10 @@ namespace CliAniHury {
 
     void CliView::fastExit() {
         // deallocate and stop menu
-        static_cast<Decidecation*>(_MainMenu)->abort();
-        delete static_cast<Decidecation*>(_MainMenu);
+        if (_MainMenu) {
+            static_cast<Decidecation*>(_MainMenu)->abort();
+            delete static_cast<Decidecation*>(_MainMenu);
+        }
 
         nocbreak();
         echo();
@@ -113,14 +136,19 @@ namespace CliAniHury {
         // Adds new line on top
         move(0,0);
         insertln();
-        // Prints String at specified position
-        mvprintw(y, x, printStr);
+        // Prints the row cut to the terminal width (printing all of it
+        // wrapped onto the next line on terminals narrower than the row),
+        // centred when the terminal is wider; not through printw, which
+        // took the row as a format string
+        int len = (int)strlen(printStr);
+        int startX = x + (COLS > len ? (COLS - len) / 2 : 0);
+        mvaddnstr(y, startX, printStr, COLS - startX);
         refresh();
     }
 
     void CliView::requestCharacters(char *input, int n) {
         echo();
-        printw(_defaultChars);
+        printw("%s", _defaultChars);
         printw("\nInsert characters that should appear(ENTER for default): ");
         getnstr(input, n);
         noecho();
@@ -254,8 +282,12 @@ namespace CliAniHury {
         }
     }
 
-    void CliView::waiting(int time) {
-        napms(time);
+    bool CliView::waiting(int time) {
+        // waits for a key instead of sleeping: any key but a resize ends
+        // the animation (upstream only stopped on Ctrl+C)
+        timeout(time);
+        int key = getch();
+        return key != ERR && key != KEY_RESIZE;
     }
 
     selection CliView::getSelection() {
