@@ -2,3 +2,8 @@
 /cmake-build-*/
 # CLion workspace
 /.idea
+# Asciiverse build folders
+/build-av/
+/out/
+/stage/
+/dist/
