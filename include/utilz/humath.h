@@ -10,6 +10,8 @@
 #include <cmath>
 #include <limits>
 #include <cassert>
+#include <cstdint>
+#include <cstring>
 
 namespace humath {
 
@@ -664,13 +666,15 @@ inline float smoothstep(float edge0, float edge1, float x) {
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 
 inline float sqrt_aprox(float base) {
-    int i;
+    // the float/int punning goes through memcpy: the pointer casts broke
+    // strict aliasing, and with optimisation GCC read y uninitialised
+    int32_t i;
     float x, y;
     x = base * 0.5;
     y = base;
-    i = * (int * ) &y;
+    std::memcpy(&i, &y, sizeof i);
     i = 0x5f3759df - (i >> 1);
-    y = * ( float * ) &i;
+    std::memcpy(&y, &i, sizeof y);
     y = y * (1.5 - (x * y * y));
     y = y * (1.5 - (x * y * y));
     return base * y;
