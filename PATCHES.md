@@ -86,3 +86,9 @@ quits with status 0); SIGTERM in the menu quits with status 0; resized to
 60x15 and 140x40 during the animation (cut, then centred). ASan and UBSan:
 every effect for 12 to 30 s and a scripted pass through the menu were
 clean after the zig-zag fix. macOS: not built here.
+
+## Ours
+
+- **How to play it, at the top of README.md.** A short note on installing and
+  starting it with av, or from a release archive; the original text follows
+  unchanged.

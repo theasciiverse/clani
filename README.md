@@ -1,3 +1,16 @@
+> **Play it with Asciiverse.** With [av](https://asciiverse.sh), the Asciiverse
+> client:
+>
+> ```
+> av install clani
+> av play clani
+> ```
+>
+> Or download the archive for your system from this repository's Releases,
+> unpack it and run `./clani` (`clani.exe` on Windows).
+>
+> The original README follows.
+
 # Clani
 
 Clani is a commandline program for any Linux distro written in C/C++, which can display different (noise) algorithms and effects with ascii characters using ncurses. This allows for some cool scrolling patterns and other animation effects.
