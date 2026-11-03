@@ -5,9 +5,12 @@
 #
 # Only the clani target is built; the unit tests (Boost) stay off. Linux
 # builds run in Alpine and link ncursesw and menuw statically, so the
-# binaries carry the -musl triple av looks for first. macOS links the system
-# ncurses and menu. No Windows build: clani uses POSIX signals and ioctl,
-# and PDCurses has no menu library.
+# binaries carry the -musl triple av looks for first. macOS does the same
+# with ncurses built from source for each architecture: the system's
+# libmenu exports no symbols (its SDK stub lists none, so new_menu and the
+# rest do not link), and its ncurses is 5.7. That ncurses reads the
+# system's terminfo in /usr/share/terminfo. No Windows build: clani uses
+# POSIX signals and ioctl, and PDCurses has no menu library.
 
 name: release
 
@@ -22,6 +25,8 @@ on:
 
 env:
   TAG: ${{ inputs.tag || github.ref_name }}
+  NCURSES_VERSION: "6.5"
+  NCURSES_SHA256: 136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6
 
 permissions:
   contents: write
@@ -68,9 +73,33 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
+      - name: ncurses, static, with its menu library
+        run: |
+          curl -sfLO --retry 8 --retry-delay 15 --retry-all-errors \
+            "https://ftp.gnu.org/gnu/ncurses/ncurses-$NCURSES_VERSION.tar.gz"
+          echo "$NCURSES_SHA256  ncurses-$NCURSES_VERSION.tar.gz" | shasum -a 256 -c
+          tar -xzf "ncurses-$NCURSES_VERSION.tar.gz" -C "$RUNNER_TEMP"
+          rm "ncurses-$NCURSES_VERSION.tar.gz"
+          cd "$RUNNER_TEMP/ncurses-$NCURSES_VERSION"
+          # the arm64 runner cross-builds x86_64; build tools stay native
+          ./configure --build=aarch64-apple-darwin --host=${{ matrix.target }} --with-build-cc=cc \
+            CC="cc -arch ${{ matrix.arch }}" CFLAGS=-O2 \
+            --prefix="$RUNNER_TEMP/ncurses" --enable-widec --enable-overwrite \
+            --without-shared --without-debug --without-cxx --without-cxx-binding \
+            --without-ada --without-progs --without-tests --without-manpages \
+            --disable-db-install --disable-mixed-case \
+            --with-default-terminfo-dir=/usr/share/terminfo \
+            --with-terminfo-dirs=/usr/share/terminfo
+          make -j3
+          make install
+          ls "$RUNNER_TEMP/ncurses/lib"
+
       - name: Build and package
         run: |
-          CURSES_LIBS="menu;ncurses" CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}" asciiverse/build.sh
+          nc="$RUNNER_TEMP/ncurses"
+          CURSES_LIBS="$nc/lib/libmenuw.a;$nc/lib/libncursesw.a" \
+            CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_CXX_FLAGS=-I$nc/include" \
+            asciiverse/build.sh
           strip out/clani
           file out/clani
           asciiverse/package.sh ${{ matrix.target }}

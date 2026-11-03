@@ -9,6 +9,7 @@
 
 #include <stdexcept>
 #include <memory>
+#include <string>
 #include <utilz/global.h>
 #include <flavour/flavour.h>
 

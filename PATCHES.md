@@ -21,7 +21,8 @@ says "License: GNU GPLv3"; nothing offers "any later version".
   and `view` programs now build only with `-DCLANI_TESTS=ON`.
 - **Curses libraries settable.** `find_library(ncurses 6.4 COMPONENTS
   menu REQUIRED)` was not a valid lookup; clani links `CLANI_CURSES_LIBS`
-  (`menuw;ncursesw` by default, `menu;ncurses` on macOS).
+  (`menuw;ncursesw` by default; macOS passes the static ncurses 6.5
+  libraries the workflow builds).
 - **Optimisation from the build type** instead of a fixed `-O0 -g`;
   `-fcheck-new` only for GCC.
 - **Opaque ncurses.** Current ncurses hides the `WINDOW` and `ITEM`
@@ -30,6 +31,9 @@ says "License: GNU GPLv3"; nothing offers "any later version".
   padded buffers of our own instead of rewriting the item's description
   pointer and length; a new value now shows at once (it used to appear only
   after the next key).
+- **Missing standard headers.** `cyclicptr.h` uses `std::copy` without
+  `<algorithm>` and `noisedef.h` uses `std::string` without `<string>`;
+  GCC's headers brought them in by chance, Apple's libc++ does not.
 - The fast inverse square root's float/int punning goes through `memcpy`
   (the pointer casts broke strict aliasing; GCC warned that it read the
   value uninitialised once optimised).
@@ -71,7 +75,10 @@ says "License: GNU GPLv3"; nothing offers "any later version".
   README.md, LICENSE and this file.
 - `.github/workflows/release.yml`: static Linux in Alpine (x86_64,
   aarch64) and macOS (x86_64, arm64), plus SHA256SUMS, on our tags
-  (`*-av.*`). No Windows build: POSIX signals and `ioctl`, and PDCurses
+  (`*-av.*`). macOS links ncurses 6.5 statically, built in the workflow
+  for each architecture and reading the system's terminfo: the system's
+  `libmenu` exports no symbols at all (its SDK stub lists none), so the
+  menu cannot link against it. No Windows build: POSIX signals and `ioctl`, and PDCurses
   has no menu library.
 - `asciiverse/record-preview.sh`, `asciiverse/clani.cast`: the catalog
   preview, 100x30, 25 s of `clani -f voronoi -s 2026` (hub's
@@ -85,7 +92,9 @@ driven in tmux at 120x40 (flavour, seed and variation set, start, a key
 quits with status 0); SIGTERM in the menu quits with status 0; resized to
 60x15 and 140x40 during the animation (cut, then centred). ASan and UBSan:
 every effect for 12 to 30 s and a scripted pass through the menu were
-clean after the zig-zag fix. macOS: not built here.
+clean after the zig-zag fix. macOS: every source compiled for arm64 and
+x86_64 against libc++ and the SDK's curses headers (zig), not linked or
+run here.
 
 ## Ours
 

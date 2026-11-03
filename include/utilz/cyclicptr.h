@@ -7,6 +7,7 @@
 #ifndef CLIANIMATION_CYCLICPTR_H
 #define CLIANIMATION_CYCLICPTR_H
 
+#include <algorithm>
 #include <iterator>
 
 namespace CliAniHury {

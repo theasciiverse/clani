@@ -6,7 +6,9 @@
 #
 #   asciiverse/build.sh                                           # Linux
 #   LDFLAGS="-static -s" asciiverse/build.sh                      # Alpine, static
-#   CURSES_LIBS="menu;ncurses" CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=arm64" asciiverse/build.sh  # macOS
+#   CURSES_LIBS="$nc/lib/libmenuw.a;$nc/lib/libncursesw.a" \
+#     CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_CXX_FLAGS=-I$nc/include" \
+#     asciiverse/build.sh                                         # macOS, ncurses 6.5 in $nc
 set -eu
 cd "$(dirname "$0")/.."
 JOBS="${JOBS:-2}"
